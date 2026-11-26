@@ -41,12 +41,14 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: bash tools/ci/ui-smoke.sh
 
+      # Screenshots are also printed into the log (base64, short lines) so they can be
+      # reviewed from environments that can read logs but not download artifacts.
       - name: Print screenshots (base64) for review
         if: always()
         run: |
-          for f in ui-smoke/*.png; do
+          for f in ui-smoke/*.png ui-smoke/*.txt; do
             echo "=====BEGIN $f"
-            base64 -w 0 "$f"; echo
+            base64 -w 2000 "$f"
             echo "=====END $f"
           done
 
