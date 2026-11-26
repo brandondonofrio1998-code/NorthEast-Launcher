@@ -24,11 +24,13 @@ for i in 1 2 3 4 5; do
   sleep 2
 done
 
-key KEYCODE_HOME
-sleep 2
+# Stock launchers keep the Home key (see docs/FEASIBILITY.md §3), so open ours directly.
+adb shell am start -n "$ACT"
+sleep 3
 shot 1-home-first-run
 
-# Open the app picker from the "+" tile (it's focused when nothing is pinned yet).
+# Walk right to the "+ Edit apps" tile at the end of the row and open the app picker.
+for _ in 1 2 3 4 5 6; do key KEYCODE_DPAD_RIGHT; done
 key KEYCODE_DPAD_CENTER
 sleep 1
 shot 2-app-picker
@@ -59,5 +61,16 @@ adb shell dumpsys gfxinfo "$PKG" reset > /dev/null
 for _ in 1 2 3 4; do key KEYCODE_DPAD_RIGHT; done
 for _ in 1 2 3 4; do key KEYCODE_DPAD_LEFT; done
 adb shell dumpsys gfxinfo "$PKG" | sed -n '/Total frames rendered/,/Number Frame deadline missed/p' | tee "$OUT/gfxinfo.txt"
+
+# Emulator only (throwaway device): does the Home key reach us once the stock launcher is out
+# of the way? This checks our HOME intent filter, not the recommended setup for real devices.
+adb shell input keyevent KEYCODE_HOME; sleep 2
+shot 8-home-key-stock-launcher
+adb shell pm disable-user --user 0 com.google.android.tvlauncher | tee -a "$OUT/home-key-test.txt"
+adb shell am start -a android.intent.action.MAIN -c android.intent.category.HOME; sleep 3
+adb shell input keyevent KEYCODE_HOME; sleep 3
+shot 9-home-key-stock-disabled
+adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME | tee -a "$OUT/home-key-test.txt"
+adb shell pm enable com.google.android.tvlauncher | tee -a "$OUT/home-key-test.txt"
 
 ls -l "$OUT"
