@@ -64,9 +64,22 @@ The debug build installs as `com.northeast.launcher.debug`, so it can sit alongs
 
 ## Making it the default home screen
 
-Not yet — this needs the Home-button handling from M2/M3, and Google TV requires more than picking it
-in Settings (see FEASIBILITY.md §3). Step-by-step, reversible ADB instructions land in `docs/` in M4.
-Until then, launch it like any app.
+Not yet — Google TV requires more than picking it in Settings (see FEASIBILITY.md §3). The Home-button
+takeover is built in M3 and the step-by-step, reversible ADB guide lands in `docs/` in M4. Until then,
+launch it like any app.
+
+What CI has already confirmed on an Android TV 11 emulator (`.github/workflows/ui-smoke.yml`):
+
+- `cmd package set-home-activity` reports success but the stock launcher still owns HOME and the Home key.
+- With the stock launcher disabled, HOME resolves to NorthEast and the Home key lands on it, so the
+  launcher's HOME registration itself works. (The emulator test re-enables the stock launcher afterwards.)
+
+## Continuous integration
+
+- **Build & test** — unit tests, debug APK, and a check that the APK requests no network permissions.
+- **UI smoke (TV emulator)** — installs on an Android TV emulator, drives it with D-pad key events,
+  screenshots each screen, and records cold-start time. Results are in the run's `ui-smoke` artifact.
+  Emulator timings use software rendering and are not representative; device numbers come in M3.
 
 ## Privacy
 
