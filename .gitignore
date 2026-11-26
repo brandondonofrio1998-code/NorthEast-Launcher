@@ -1,0 +1,28 @@
+# Gradle / build output
+.gradle/
+build/
+**/build/
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+local.properties
+
+# macOS
+.DS_Store
+
+# Signing secrets — never commit
+keystore.properties
+*.jks
+*.keystore
+*.p12
+*.pem
+
+# Release outputs
+*.apk
+*.aab
+release/
