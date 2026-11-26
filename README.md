@@ -3,9 +3,24 @@
 A minimal, fast, ad-free home screen for Android TV / Google TV with a Northeast woodland look.
 Your pinned apps, nothing else: no ads, no recommendations, no "continue watching", no network access.
 
-> **Status:** M1 — project scaffold. It builds, installs and registers as a HOME launcher, but the
-> screen is a placeholder. The pinned-app home screen arrives in M2. See [`docs/FEASIBILITY.md`](docs/FEASIBILITY.md)
-> for why this is a launcher (not a custom OS) and which devices it targets.
+> **Status:** M2 — working home screen: a single row of your pinned apps on a spruce-and-pine
+> backdrop, with add / remove / reorder by remote. Settings and the Home-button takeover come in M3.
+> See [`docs/FEASIBILITY.md`](docs/FEASIBILITY.md) for why this is a launcher (not a custom OS) and
+> which devices it targets.
+
+## Using it with the remote
+
+| Do this | To |
+|---|---|
+| ◀ ▶ then **OK** | Open an app |
+| **Hold OK** on an app (or press **Menu**) | Move it or remove it from home |
+| In move mode: ◀ ▶, then **OK** or **Back** | Slide the tile, then put it down |
+| **+ Edit apps** tile | See every installed app; **OK** adds or removes it from home |
+| **Back** | Leaves move mode or the app list; never exits the launcher |
+
+On first run it pins YouTube, Crunchyroll, Spotify and HBO Max if they're installed.
+The focus outline color follows New England's seasons by the TV's date: frost (Dec–Feb),
+lilac (Mar–May), goldenrod (Jun–Aug), red maple (Sep–Oct) and copper oak for stick season (Nov).
 
 ## Requirements
 
@@ -64,9 +79,12 @@ Until then, launch it like any app.
 
 ```
 app/src/main/java/com/northeast/launcher/
-  MainActivity.kt          HOME activity (placeholder UI in M1)
-  data/                    pinned-app model, ordering, storage (pure Kotlin, unit-tested)
+  MainActivity.kt          HOME activity; refreshes on start and on app installs/removals
+  apps/AppCatalog.kt       lists launchable apps, loads icons, opens apps (local only)
+  data/                    pinned-app model, ordering, storage, seasons (pure Kotlin, unit-tested)
+  ui/                      Compose for TV screens, woodland theme
 app/src/test/              JUnit tests, run before every commit and in CI
+tools/gen_pine_ridge.py    regenerates the backdrop art (see ASSETS.md)
 docs/                      feasibility study; later: setup guide, troubleshooting
 ```
 
@@ -74,6 +92,6 @@ docs/                      feasibility study; later: setup guide, troubleshootin
 
 - [x] M0 — Feasibility & device choice
 - [x] M1 — Project setup, storage/ordering logic + tests, CI
-- [ ] M2 — Home screen: app grid, launch, add/remove/reorder, woodland theme
+- [x] M2 — Home screen: app row, launch, add/remove/reorder, woodland theme (device install pending)
 - [ ] M3 — Settings, focus polish, performance pass (startup + frame times measured)
 - [ ] M4 — Signed release setup, default-launcher guide, troubleshooting

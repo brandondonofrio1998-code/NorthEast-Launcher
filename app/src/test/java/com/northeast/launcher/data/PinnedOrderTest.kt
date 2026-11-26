@@ -76,6 +76,12 @@ class PinnedOrderTest {
     }
 
     @Test
+    fun unpinnedListsInstalledAppsNotOnHomeInInstalledOrder() {
+        assertEquals(listOf(d, b), PinnedOrder.unpinned(installed = listOf(d, a, b, c), pinned = listOf(c, a)))
+        assertEquals(emptyList<AppKey>(), PinnedOrder.unpinned(installed = listOf(a), pinned = listOf(a, b)))
+    }
+
+    @Test
     fun normalizeRemovesDuplicatesKeepingFirst() {
         assertEquals(listOf(b, a, c), PinnedOrder.normalize(listOf(b, a, b, c, a)))
     }

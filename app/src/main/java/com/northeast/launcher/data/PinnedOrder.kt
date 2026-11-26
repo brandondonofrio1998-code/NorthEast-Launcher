@@ -44,6 +44,12 @@ object PinnedOrder {
     fun visible(list: List<AppKey>, installed: Set<AppKey>): List<AppKey> =
         list.filter { it in installed }
 
+    /** Installed apps that are not pinned yet (the "Add apps" list), in [installed] order. */
+    fun unpinned(installed: List<AppKey>, pinned: List<AppKey>): List<AppKey> {
+        val pinnedSet = pinned.toHashSet()
+        return installed.filterNot { it in pinnedSet }
+    }
+
     /** Removes duplicates, keeping the first occurrence. */
     fun normalize(list: List<AppKey>): List<AppKey> = list.distinct()
 }
