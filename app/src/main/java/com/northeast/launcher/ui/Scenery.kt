@@ -1,6 +1,10 @@
 package com.northeast.launcher.ui
 
 import android.text.format.DateFormat
+import androidx.annotation.DrawableRes
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import com.northeast.launcher.ui.theme.LocalRidge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -39,16 +43,27 @@ fun Scenery(content: @Composable BoxScope.() -> Unit) {
             .fillMaxSize()
             .background(skyBrush),
     ) {
-        Image(
-            painter = painterResource(R.drawable.pine_ridge),
-            contentDescription = null,
-            contentScale = ContentScale.FillWidth,
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter),
-        )
+        val ridge = LocalRidge.current
+        // Three stacked layers sharing one viewport, each tinted with its seasonal color.
+        RidgeLayer(R.drawable.pine_ridge_far, ridge.far)
+        RidgeLayer(R.drawable.pine_ridge_mid, ridge.mid)
+        RidgeLayer(R.drawable.pine_ridge_near, ridge.near)
         content()
     }
+}
+
+@Composable
+private fun BoxScope.RidgeLayer(@DrawableRes res: Int, color: Color) {
+    val tint = remember(color) { ColorFilter.tint(color) }
+    Image(
+        painter = painterResource(res),
+        contentDescription = null,
+        contentScale = ContentScale.FillWidth,
+        colorFilter = tint,
+        modifier = Modifier
+            .fillMaxWidth()
+            .align(Alignment.BottomCenter),
+    )
 }
 
 /** Current time, in the device's 12/24-hour setting. Ticks once a minute, on the minute. */

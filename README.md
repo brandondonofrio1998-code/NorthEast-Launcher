@@ -19,7 +19,7 @@ Your pinned apps, nothing else: no ads, no recommendations, no "continue watchin
 | **Back** | Leaves move mode or the app list; never exits the launcher |
 
 On first run it pins YouTube, Crunchyroll, Spotify and HBO Max if they're installed.
-The focus outline color follows New England's seasons by the TV's date: frost (Dec–Feb),
+The focus outline and the pine trees both follow New England's seasons by the TV's date: frost (Dec–Feb),
 lilac (Mar–May), goldenrod (Jun–Aug), red maple (Sep–Oct) and copper oak for stick season (Nov).
 
 ## Requirements

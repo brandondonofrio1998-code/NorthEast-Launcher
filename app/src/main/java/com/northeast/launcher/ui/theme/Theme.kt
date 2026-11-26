@@ -32,7 +32,26 @@ object Woodland {
         Season.FOLIAGE -> Color(0xFFC8442F) // red maple
         Season.STICK -> Color(0xFFB8733A)   // copper oak leaves
     }
+
+    /** Tree colors for the pine ridge, far → mid → near, in the season's accent hue. */
+    data class Ridge(val far: Color, val mid: Color, val near: Color)
+
+    /**
+     * Each season's accent blended into the spruce background at increasing strength
+     * (far 28%, mid 62%), with the nearest trees darkened so the layers read as depth.
+     * Precomputed (tools/gen_pine_ridge.py documents the art) so there's no per-frame math.
+     */
+    fun ridgeColors(season: Season): Ridge = when (season) {
+        Season.WINTER -> Ridge(Color(0xFF51645D), Color(0xFF93A2A2), Color(0xFF747B7E))
+        Season.SPRING -> Ridge(Color(0xFF474E54), Color(0xFF7C728F), Color(0xFF60526E))
+        Season.SUMMER -> Ridge(Color(0xFF52562F), Color(0xFF95843C), Color(0xFF766128))
+        Season.FOLIAGE -> Ridge(Color(0xFF4B3627), Color(0xFF863C2B), Color(0xFF692519))
+        Season.STICK -> Ridge(Color(0xFF47432A), Color(0xFF7C5A32), Color(0xFF613E1F))
+    }
 }
+
+/** The current pine-ridge colors; change with the season. */
+val LocalRidge = staticCompositionLocalOf { Woodland.ridgeColors(Season.FOLIAGE) }
 
 /** The current focus accent; changes with the season. */
 val LocalAccent = staticCompositionLocalOf { Woodland.accentFor(Season.FOLIAGE) }
@@ -51,6 +70,10 @@ fun NorthEastTheme(season: Season, content: @Composable () -> Unit) {
             border = accent,
         ),
     ) {
-        CompositionLocalProvider(LocalAccent provides accent, content = content)
+        CompositionLocalProvider(
+            LocalAccent provides accent,
+            LocalRidge provides Woodland.ridgeColors(season),
+            content = content,
+        )
     }
 }
