@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Placeholder: final woodland palette is decided in M2. -->
+    <color name="window_background">#FF16241C</color>
+</resources>
