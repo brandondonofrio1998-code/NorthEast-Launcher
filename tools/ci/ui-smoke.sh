@@ -74,3 +74,11 @@ adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c 
 adb shell pm enable com.google.android.tvlauncher | tee -a "$OUT/home-key-test.txt"
 
 ls -l "$OUT"
+
+# Print everything into the log too (short base64 lines): some reviewers can read CI logs but
+# not download artifacts. Done here, not in a later step, in case emulator teardown hangs.
+for f in "$OUT"/*; do
+  echo "=====BEGIN $f"
+  base64 -w 2000 "$f"
+  echo "=====END $f"
+done
