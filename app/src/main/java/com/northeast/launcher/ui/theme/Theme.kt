@@ -28,7 +28,7 @@ object Woodland {
     fun accentFor(season: Season): Color = when (season) {
         Season.WINTER -> Color(0xFFDCE8EF)  // frost on birch
         Season.SPRING -> Color(0xFFB79AD1)  // lilac, NH's state flower
-        Season.SUMMER -> Color(0xFFE0B84A)  // late-summer goldenrod
+        Season.SUMMER -> Color(0xFF8CCB3F)  // bright summer leaf green
         Season.FOLIAGE -> Color(0xFFC8442F) // red maple
         Season.STICK -> Color(0xFFB8733A)   // copper oak leaves
     }
@@ -44,7 +44,7 @@ object Woodland {
     fun ridgeColors(season: Season): Ridge = when (season) {
         Season.WINTER -> Ridge(Color(0xFF51645D), Color(0xFF93A2A2), Color(0xFF747B7E))
         Season.SPRING -> Ridge(Color(0xFF474E54), Color(0xFF7C728F), Color(0xFF60526E))
-        Season.SUMMER -> Ridge(Color(0xFF52562F), Color(0xFF95843C), Color(0xFF766128))
+        Season.SUMMER -> Ridge(Color(0xFF3B5B2C), Color(0xFF619035), Color(0xFF4A6B22))
         Season.FOLIAGE -> Ridge(Color(0xFF4B3627), Color(0xFF863C2B), Color(0xFF692519))
         Season.STICK -> Ridge(Color(0xFF47432A), Color(0xFF7C5A32), Color(0xFF613E1F))
     }
