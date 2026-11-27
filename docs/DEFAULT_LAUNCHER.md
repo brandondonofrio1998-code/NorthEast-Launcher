@@ -124,6 +124,10 @@ The packages it turns off (only those present on your device):
 It uses `pm disable-user`, which turns a package off for your user without uninstalling anything. A
 factory reset also turns them back on.
 
+**Wait about 30 seconds before restarting the TV.** Android saves package on/off states to disk
+a few seconds after the command. In testing, rebooting right away lost the change and the stock launcher
+came back. That's harmless, but confusing. After the wait, a reboot goes straight to NorthEast.
+
 ## Undo everything
 
 ```bash
@@ -157,6 +161,8 @@ works without a computer:
 - Google TV's **Apps only mode** (Settings → Accounts & sign-in → your profile) removes most
   recommendation rows from the stock screen. Google has added ads to that mode in some countries.
 
-What CI checks automatically on an Android TV emulator: `make-default` binds the service,
-`disable-stock` followed by a **reboot** lands on NorthEast, and `restore` gives Home back to the stock
-launcher with the service off.
+What CI checks automatically on an Android TV 11 emulator: `make-default` binds the service,
+`disable-stock` followed by a **reboot** lands on NorthEast, and `restore` turns the stock launcher back
+on, gives Home back to it and turns the service off. The emulator runs Android TV's launcher
+(`tvlauncher`); Google TV's `launcherx` and `setupwraith` follow the same commands but are first tested
+on a real Google TV device.

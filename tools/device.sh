@@ -132,6 +132,7 @@ cmd_disable_stock() {
   done
   sh_ cmd package set-home-activity --user 0 "$ACTIVITY" > /dev/null 2>&1 || true
   say "Home now resolves to: $(home_resolves_to)"
+  say "Wait 30 seconds before restarting the TV: Android saves this change to disk after a short delay."
   say "To undo at any time: tools/device.sh restore"
 }
 
@@ -173,6 +174,7 @@ cmd_restore() {
 
   sh_ am start -a android.intent.action.MAIN -c android.intent.category.HOME > /dev/null
   say "Home now resolves to: $(home_resolves_to)"
+  say "Wait 30 seconds before restarting the TV so Android saves the change."
   say "If NorthEast is still installed and Android asks which home app to use, pick the stock one."
 }
 

@@ -48,6 +48,10 @@ the stock settings shortcut.
 With the takeover on, NorthEast receives Home presses (short and long). Turn **Home button takeover** off
 in settings to get the stock behavior back without undoing anything else.
 
+**After turning off the stock launcher and restarting, the stock home screen is back**
+The TV was restarted within a few seconds of the change, before Android saved it. Run
+`tools/device.sh disable-stock --yes` again, wait 30 seconds, then restart.
+
 ## Home screen
 
 **An app is missing from the app list**

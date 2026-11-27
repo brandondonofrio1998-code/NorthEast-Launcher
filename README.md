@@ -3,10 +3,14 @@
 A minimal, fast, ad-free home screen for Android TV / Google TV with a Northeast woodland look.
 Your pinned apps, nothing else: no ads, no recommendations, no "continue watching", no network access.
 
-> **Status:** M3 — home screen, ~40 settings, Home-button takeover service, remote button test,
-> settings PIN and layout lock. Verified on an Android TV emulator; real-device testing and timing
-> are next. See [`docs/FEASIBILITY.md`](docs/FEASIBILITY.md) for why this is a launcher (not a custom
-> OS) and which devices it targets, and [`docs/SETTINGS.md`](docs/SETTINGS.md) for every setting.
+> **Status:** M4 — feature-complete for a first release: home screen, ~40 settings, Home-button
+> takeover, signed release builds, and a reversible setup/undo script. Everything is verified on an
+> Android TV emulator in CI; first real-device test (Home button with a physical remote, startup and
+> frame timing) is next.
+>
+> Docs: [Feasibility](docs/FEASIBILITY.md) · [Settings](docs/SETTINGS.md) ·
+> [Make it the home screen](docs/DEFAULT_LAUNCHER.md) · [Release builds](docs/RELEASE.md) ·
+> [Troubleshooting](docs/TROUBLESHOOTING.md)
 
 ## Using it with the remote
 
@@ -42,6 +46,9 @@ cd NorthEast-Launcher
 
 Or open the folder in Android Studio and press Run with the TV (or a TV emulator) selected.
 
+For the TVs you actually use, build a **signed release** (`./gradlew assembleRelease` with your own
+`keystore.properties`, never committed). See [docs/RELEASE.md](docs/RELEASE.md).
+
 **No build machine handy?** Every push is built and tested on GitHub Actions. Open the
 repo's **Actions** tab → latest *Build & test* run → download the `northeast-launcher-debug-apk` artifact.
 
@@ -65,23 +72,28 @@ The debug build installs as `com.northeast.launcher.debug`, so it can sit alongs
 
 ## Making it the default home screen
 
-Google TV requires more than picking it in Settings (see FEASIBILITY.md §3). NorthEast includes a small
-**Home-button service** (an accessibility service that only listens for the Home button — it can't read
-the screen). Turn it on from **Settings → Home button setup**, which shows the exact two ADB commands for
-your build. The full step-by-step, reversible guide lands in `docs/` in M4.
+```bash
+tools/device.sh install app/build/outputs/apk/release/app-release.apk
+tools/device.sh make-default            # Home button opens NorthEast
+tools/device.sh disable-stock --yes     # optional: stock launcher (and its ads) off
+tools/device.sh restore                 # undo everything
+```
 
-What CI has already confirmed on an Android TV 11 emulator (`.github/workflows/ui-smoke.yml`):
-
-- `cmd package set-home-activity` reports success but the stock launcher still owns HOME and the Home key.
-- With the stock launcher disabled, HOME resolves to NorthEast and the Home key lands on it, so the
-  launcher's HOME registration itself works. (The emulator test re-enables the stock launcher afterwards.)
+Google TV needs more than picking a launcher in Settings, so step-by-step instructions, safeguards and
+manual commands are in [docs/DEFAULT_LAUNCHER.md](docs/DEFAULT_LAUNCHER.md). Add
+`--package com.northeast.launcher.debug` before the command for a debug build.
 
 ## Continuous integration
 
-- **Build & test** — unit tests, debug APK, and a check that the APK requests no network permissions.
-- **UI smoke (TV emulator)** — installs on an Android TV emulator, drives it with D-pad key events,
-  screenshots each screen, and records cold-start time. Results are in the run's `ui-smoke` artifact.
-  Emulator timings use software rendering and are not representative; device numbers come in M3.
+- **Build & test**: unit tests, debug APK and unsigned release APK, a check that neither requests
+  network permissions, and a check that no signing secrets are tracked.
+- **UI smoke (TV emulator)**: installs on an Android TV 11 emulator and drives it with D-pad key
+  events through home, app list, move, settings, remote test and Home-button setup, with screenshots.
+  It also runs `tools/device.sh` end to end: make-default, the service binding, disable-stock, **a
+  reboot that must land on NorthEast**, and restore. Finally it installs a release build signed with a
+  throwaway CI key and checks that it starts. Results are in the run's `ui-smoke` artifact.
+  Emulator timings use software rendering. The release build's cold start was ~1.0 s there vs
+  ~1.7 s for debug, but real numbers come from the device.
 
 ## Privacy
 
@@ -104,8 +116,11 @@ app/src/main/java/com/northeast/launcher/
   ui/                      Compose for TV home screen and app list, woodland theme
   ui/settings/             settings list, arrange, remote test, Home-button setup, PIN pad
 app/src/test/              JUnit tests, run before every commit and in CI
+tools/device.sh            install / make-default / disable-stock / restore over ADB
 tools/gen_pine_ridge.py    regenerates the backdrop art (see ASSETS.md)
-docs/                      feasibility study, settings guide; later: setup guide, troubleshooting
+tools/ci/ui-smoke.sh       the emulator walkthrough CI runs
+keystore.properties.template   copy to keystore.properties for signed releases (git-ignored)
+docs/                      feasibility, settings, default-launcher guide, release, troubleshooting
 ```
 
 ## Roadmap
@@ -113,5 +128,6 @@ docs/                      feasibility study, settings guide; later: setup guide
 - [x] M0 — Feasibility & device choice
 - [x] M1 — Project setup, storage/ordering logic + tests, CI
 - [x] M2 — Home screen: app row, launch, add/remove/reorder, woodland theme (device install pending)
-- [~] M3 — Settings, Home-button service, focus polish (done, emulator-verified); performance numbers on the real device still to measure
-- [ ] M4 — Signed release setup, default-launcher guide, troubleshooting
+- [x] M3 — Settings, Home-button service, focus polish (emulator-verified)
+- [x] M4 — Signed release setup, default-launcher guide + script, troubleshooting
+- [ ] On a real device — Home button with a physical remote; startup and frame timing on the stick
