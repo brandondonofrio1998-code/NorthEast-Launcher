@@ -117,6 +117,8 @@ $DEV disable-stock --yes | tee "$OUT/device-disable-stock.txt"
 adb shell input keyevent KEYCODE_HOME; sleep 3
 shot 21-home-key-stock-disabled
 # Reboot: with the stock launcher off, the TV must boot straight into NorthEast (no soft-brick).
+# Android writes package enabled/disabled state to disk a few seconds after the change; give it time.
+sleep 30
 adb reboot
 adb wait-for-device
 for _ in $(seq 90); do [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1 ] && break; sleep 2; done
@@ -129,7 +131,7 @@ adb shell dumpsys activity activities | grep -m1 -E "mResumedActivity|topResumed
   echo "--- home resolves to:"; adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME
   echo "--- boot log about the launcher:"; adb logcat -d | grep -iE "tvlauncher.*(enabl|disabl)|setEnabledSetting|PackageManager.*enable" | tail -15
 } 2>&1 | tr -d '\r' | tee -a "$OUT/after-reboot.txt"
-grep -q "$PKG" "$OUT/after-reboot.txt" || echo "NOTE: NorthEast was not the home screen after reboot (see after-reboot.txt)"
+grep -q "mResumedActivity.*$PKG" "$OUT/after-reboot.txt" || { echo "::error::NorthEast was not the home screen after reboot"; FAILED=1; }
 
 $DEV restore | tee "$OUT/device-restore.txt"
 sleep 3
