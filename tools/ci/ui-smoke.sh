@@ -62,6 +62,54 @@ for _ in 1 2 3 4; do key KEYCODE_DPAD_RIGHT; done
 for _ in 1 2 3 4; do key KEYCODE_DPAD_LEFT; done
 adb shell dumpsys gfxinfo "$PKG" | sed -n '/Total frames rendered/,/Number Frame deadline missed/p' | tee "$OUT/gfxinfo.txt"
 
+# ---- Settings (M3). Row numbers follow the order in SettingsScreen.kt. ----
+key KEYCODE_DPAD_UP                       # row → settings gear
+shot 10-gear-focused
+key KEYCODE_DPAD_CENTER                   # open settings (no PIN set)
+sleep 1
+shot 11-settings-top
+key KEYCODE_DPAD_RIGHT                    # Color theme: Automatic → Winter
+shot 12-settings-color-winter
+key KEYCODE_DPAD_LEFT                     # back to Automatic
+for _ in 1 2 3 4 5 6; do key KEYCODE_DPAD_DOWN; done   # row 7: Tile size
+key KEYCODE_DPAD_RIGHT                    # Medium → Large
+for _ in $(seq 10); do key KEYCODE_DPAD_DOWN; done     # row 17: Date
+key KEYCODE_DPAD_CENTER                   # Date on
+key KEYCODE_DPAD_DOWN; key KEYCODE_DPAD_CENTER   # row 18: Greeting on
+key KEYCODE_DPAD_DOWN; key KEYCODE_DPAD_CENTER   # row 19: Season name on
+shot 13-settings-clock-section
+for _ in $(seq 15); do key KEYCODE_DPAD_DOWN; done     # row 34: Remote button test
+key KEYCODE_DPAD_CENTER
+sleep 1
+key KEYCODE_MENU
+key KEYCODE_GUIDE
+key KEYCODE_PROG_RED
+shot 14-remote-test
+key KEYCODE_BACK
+for _ in 1 2 3; do key KEYCODE_DPAD_UP; done           # row 31: Home button setup
+key KEYCODE_DPAD_CENTER
+sleep 1
+shot 15-home-button-setup
+key KEYCODE_BACK
+for _ in $(seq 10); do key KEYCODE_DPAD_DOWN; done     # to the bottom: reset & about
+shot 16-settings-bottom
+key KEYCODE_BACK                          # leave settings
+sleep 1
+shot 17-home-customized
+
+# ---- Home button takeover with the accessibility service, stock launcher still enabled ----
+SVC="$PKG/com.northeast.launcher.home.HomeButtonService"
+adb shell settings put secure enabled_accessibility_services "$SVC"
+adb shell settings put secure accessibility_enabled 1
+sleep 3
+adb shell am start -a android.settings.SETTINGS; sleep 3
+shot 18-another-app-open
+adb shell input keyevent KEYCODE_HOME; sleep 3
+shot 19-home-key-with-service
+adb shell dumpsys activity activities | grep -m2 -E "topResumedActivity|mResumedActivity" | tee "$OUT/home-key-with-service.txt"
+adb shell settings put secure enabled_accessibility_services ""
+adb shell settings put secure accessibility_enabled 0
+
 # Emulator only (throwaway device): does the Home key reach us once the stock launcher is out
 # of the way? This checks our HOME intent filter, not the recommended setup for real devices.
 adb shell input keyevent KEYCODE_HOME; sleep 2
