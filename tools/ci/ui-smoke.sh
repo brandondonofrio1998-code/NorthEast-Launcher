@@ -45,6 +45,8 @@ shot 3-app-picker-with-pins
 key KEYCODE_BACK
 sleep 1
 shot 4-home-with-pins
+# Back from the app list highlights "Edit apps"; walk left to the first app tile.
+for _ in 1 2 3 4 5 6; do key KEYCODE_DPAD_LEFT; done
 
 # Hold OK on the first tile → options; choose Move; move it right once; screenshot; put it down.
 adb shell input keyevent --longpress KEYCODE_DPAD_CENTER
