@@ -100,40 +100,18 @@ key KEYCODE_BACK                          # leave settings
 sleep 1
 shot 17-home-customized
 
-# ---- Home button takeover with the accessibility service, stock launcher still enabled ----
+# ---- Home-button service: must install, be accepted by the system, and bind ----
+# A physical Home press can't be simulated here: shell-injected keys skip accessibility key filtering
+# by design, and the Android TV emulator image has no root for writing to input devices. The actual
+# Home takeover is therefore checked on a real device with its remote (see docs/SETTINGS.md).
 SVC="$PKG/com.northeast.launcher.home.HomeButtonService"
 adb shell settings put secure enabled_accessibility_services "$SVC"
 adb shell settings put secure accessibility_enabled 1
-sleep 3
-adb shell dumpsys accessibility | grep -iE "northeast|Bound services|Enabled services" | tee "$OUT/home-key-with-service.txt"
-adb shell am start -a android.settings.SETTINGS; sleep 3
-shot 18-another-app-open
-# (a) Shell-injected Home key.
-adb shell input keyevent KEYCODE_HOME; sleep 3
-shot 19-home-key-with-service-input
-echo "--- after 'input keyevent HOME':" >> "$OUT/home-key-with-service.txt"
-adb shell dumpsys activity activities | grep -m2 -E "topResumedActivity|mResumedActivity" | tee -a "$OUT/home-key-with-service.txt"
-# (b) Home written straight into a kernel input device (needs root): the same path a real remote
-#     takes, so it passes through accessibility key filtering, unlike shell-injected keys.
-adb root > /dev/null 2>&1 || true
-sleep 3; adb wait-for-device
-echo "--- input devices with a Home key:" >> "$OUT/home-key-with-service.txt"
-adb shell getevent -pl 2>/dev/null | grep -E "add device|name:|KEY_HOME" | tee -a "$OUT/home-key-with-service.txt" > /dev/null
-# Prefer the emulator's keyboard (Generic.kl maps KEY_HOMEPAGE to HOME); fall back to any device with a Home key.
-DEV=$(adb shell getevent -pl 2>/dev/null | tr -d '\r' | awk '/add device/{d=$4} /name:.*keyboard/{print d; exit}')
-[ -z "$DEV" ] && DEV=$(adb shell getevent -pl 2>/dev/null | tr -d '\r' | awk '/add device/{d=$4} /KEY_HOMEPAGE|KEY_HOME /{print d; exit}')
-echo "device: ${DEV:-none}; shell user: $(adb shell id -u | tr -d '\r')" >> "$OUT/home-key-with-service.txt"
-for CODE in 172 102; do   # KEY_HOMEPAGE, KEY_HOME — whichever the keyboard layout maps to HOME
-  adb shell am start -a android.settings.SETTINGS; sleep 3
-  if [ -n "$DEV" ]; then
-    adb shell "sendevent $DEV 1 $CODE 1; sendevent $DEV 0 0 0; sendevent $DEV 1 $CODE 0; sendevent $DEV 0 0 0" 2>&1 | head -3 | tee -a "$OUT/home-key-with-service.txt"
-  fi
-  sleep 3
-  shot "20-home-key-hardware-$CODE"
-  echo "--- after hardware key $CODE:" >> "$OUT/home-key-with-service.txt"
-  adb shell dumpsys activity activities | grep -m2 -E "topResumedActivity|mResumedActivity" | tee -a "$OUT/home-key-with-service.txt"
-done
-adb logcat -d | grep -E "NorthEastHome|ActivityTaskManager.*(Background|BAL|Abort)" | tail -20 | tee -a "$OUT/home-key-with-service.txt"
+sleep 4
+adb shell dumpsys accessibility | grep -E "Bound services|Enabled services" | tee "$OUT/home-service.txt"
+adb logcat -d | grep "NorthEastHome" | tail -5 | tee -a "$OUT/home-service.txt"
+SERVICE_BOUND=0
+grep -q "NorthEast Home button" "$OUT/home-service.txt" && SERVICE_BOUND=1
 adb shell settings put secure enabled_accessibility_services ""
 adb shell settings put secure accessibility_enabled 0
 
@@ -149,6 +127,7 @@ adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c 
 adb shell pm enable com.google.android.tvlauncher | tee -a "$OUT/home-key-test.txt"
 
 ls -l "$OUT"
+if [ "$SERVICE_BOUND" != 1 ]; then echo "::error::Home-button service did not bind"; FAILED=1; fi
 
 # Print everything into the log too (short base64 lines): some reviewers can read CI logs but
 # not download artifacts. Done here, not in a later step, in case emulator teardown hangs.
@@ -157,3 +136,5 @@ for f in "$OUT"/*; do
   base64 -w 2000 "$f"
   echo "=====END $f"
 done
+
+exit "${FAILED:-0}"
