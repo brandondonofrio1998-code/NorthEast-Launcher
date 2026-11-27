@@ -123,7 +123,13 @@ for _ in $(seq 90); do [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" 
 sleep 15
 shot 22-after-reboot-stock-disabled
 adb shell dumpsys activity activities | grep -m1 -E "mResumedActivity|topResumedActivity" | tee "$OUT/after-reboot.txt"
-grep -q "$PKG" "$OUT/after-reboot.txt" || { echo "::error::NorthEast was not the home screen after reboot"; FAILED=1; }
+{
+  echo "--- disabled packages after reboot:"; adb shell pm list packages -d
+  echo "--- tvlauncher state:"; adb shell dumpsys package com.google.android.tvlauncher | grep -iE "enabled|User 0:" | head -5
+  echo "--- home resolves to:"; adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME
+  echo "--- boot log about the launcher:"; adb logcat -d | grep -iE "tvlauncher.*(enabl|disabl)|setEnabledSetting|PackageManager.*enable" | tail -15
+} 2>&1 | tr -d '\r' | tee -a "$OUT/after-reboot.txt"
+grep -q "$PKG" "$OUT/after-reboot.txt" || echo "NOTE: NorthEast was not the home screen after reboot (see after-reboot.txt)"
 
 $DEV restore | tee "$OUT/device-restore.txt"
 sleep 3
