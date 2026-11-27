@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
+import android.util.Log
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
 import com.northeast.launcher.MainActivity
@@ -23,6 +24,11 @@ class HomeButtonService : AccessibilityService() {
 
     private val settings by lazy { SettingsStore(SharedPrefsKeyValueStore(this)) }
 
+    override fun onServiceConnected() {
+        super.onServiceConnected()
+        Log.i(TAG, "Home-button service connected")
+    }
+
     override fun onKeyEvent(event: KeyEvent): Boolean {
         if (KeyLog.testing) {
             KeyLog.record(event, viaService = true)
@@ -34,7 +40,10 @@ class HomeButtonService : AccessibilityService() {
         val isHomeKey = event.keyCode == KeyEvent.KEYCODE_HOME ||
             (current.extraHomeKey != 0 && event.keyCode == current.extraHomeKey)
         if (!isHomeKey) return false
-        if (event.action == KeyEvent.ACTION_UP && !event.isCanceled) goHome()
+        if (event.action == KeyEvent.ACTION_UP && !event.isCanceled) {
+            Log.i(TAG, "Home button (${KeyLog.nameOf(event.keyCode)}): opening NorthEast")
+            goHome()
+        }
         return true
     }
 
@@ -45,8 +54,9 @@ class HomeButtonService : AccessibilityService() {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
         try {
             startActivity(intent)
-        } catch (_: RuntimeException) {
+        } catch (e: RuntimeException) {
             // Never crash the service: if this fails the system's own Home behaviour is all that's lost.
+            Log.w(TAG, "Couldn't open NorthEast", e)
         }
     }
 
@@ -55,6 +65,8 @@ class HomeButtonService : AccessibilityService() {
     override fun onInterrupt() = Unit
 
     companion object {
+        private const val TAG = "NorthEastHome"
+
         fun component(context: Context) = ComponentName(context, HomeButtonService::class.java)
 
         /** Whether the user (or ADB) has turned this service on in the system's accessibility settings. */

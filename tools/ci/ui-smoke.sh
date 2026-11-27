@@ -63,6 +63,7 @@ for _ in 1 2 3 4; do key KEYCODE_DPAD_LEFT; done
 adb shell dumpsys gfxinfo "$PKG" | sed -n '/Total frames rendered/,/Number Frame deadline missed/p' | tee "$OUT/gfxinfo.txt"
 
 # ---- Settings (M3). Row numbers follow the order in SettingsScreen.kt. ----
+for _ in 1 2 3 4 5 6; do key KEYCODE_DPAD_LEFT; done   # back to the first tile
 key KEYCODE_DPAD_UP                       # row → settings gear
 shot 10-gear-focused
 key KEYCODE_DPAD_CENTER                   # open settings (no PIN set)
@@ -102,11 +103,24 @@ SVC="$PKG/com.northeast.launcher.home.HomeButtonService"
 adb shell settings put secure enabled_accessibility_services "$SVC"
 adb shell settings put secure accessibility_enabled 1
 sleep 3
+adb shell dumpsys accessibility | grep -iE "northeast|Bound services|Enabled services" | tee "$OUT/home-key-with-service.txt"
 adb shell am start -a android.settings.SETTINGS; sleep 3
 shot 18-another-app-open
+# (a) Shell-injected Home key.
 adb shell input keyevent KEYCODE_HOME; sleep 3
-shot 19-home-key-with-service
-adb shell dumpsys activity activities | grep -m2 -E "topResumedActivity|mResumedActivity" | tee "$OUT/home-key-with-service.txt"
+shot 19-home-key-with-service-input
+echo "--- after 'input keyevent HOME':" >> "$OUT/home-key-with-service.txt"
+adb shell dumpsys activity activities | grep -m2 -E "topResumedActivity|mResumedActivity" | tee -a "$OUT/home-key-with-service.txt"
+# (b) Home from the emulator's virtual keyboard hardware: the same path a real remote takes.
+adb shell am start -a android.settings.SETTINGS; sleep 3
+adb emu event send EV_KEY:KEY_HOMEPAGE:1 EV_SYN:SYN_REPORT:0 || true
+sleep 0.2
+adb emu event send EV_KEY:KEY_HOMEPAGE:0 EV_SYN:SYN_REPORT:0 || true
+sleep 3
+shot 20-home-key-with-service-hardware
+echo "--- after hardware HOME:" >> "$OUT/home-key-with-service.txt"
+adb shell dumpsys activity activities | grep -m2 -E "topResumedActivity|mResumedActivity" | tee -a "$OUT/home-key-with-service.txt"
+adb logcat -d | grep -E "NorthEastHome|ActivityTaskManager.*(Background|BAL|Abort)" | tail -20 | tee -a "$OUT/home-key-with-service.txt"
 adb shell settings put secure enabled_accessibility_services ""
 adb shell settings put secure accessibility_enabled 0
 
