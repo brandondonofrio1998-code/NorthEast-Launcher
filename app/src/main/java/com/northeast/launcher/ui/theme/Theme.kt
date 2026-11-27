@@ -2,11 +2,26 @@ package com.northeast.launcher.ui.theme
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.darkColorScheme
+import com.northeast.launcher.data.BackgroundStyle
+import com.northeast.launcher.data.LabelMode
+import com.northeast.launcher.data.LauncherSettings
+import com.northeast.launcher.data.SceneryMode
 import com.northeast.launcher.data.Season
+import com.northeast.launcher.data.TileArtwork
+import com.northeast.launcher.data.TileSize
+import com.northeast.launcher.data.TreeColor
 
 /** Northeast woodland palette. All colors are original choices for this project. */
 object Woodland {
@@ -33,13 +48,17 @@ object Woodland {
         Season.STICK -> Color(0xFFB8733A)   // copper oak leaves
     }
 
-    /** Tree colors for the pine ridge, far → mid → near, in the season's accent hue. */
+    /** Tree colors for the pine ridge, far → mid → near. */
+    @Immutable
     data class Ridge(val far: Color, val mid: Color, val near: Color)
+
+    /** The original dark-green silhouettes ("Classic dark green" tree setting). */
+    val ClassicRidge = Ridge(Color(0xFF17291E), Color(0xFF122119), Color(0xFF0D1812))
 
     /**
      * Each season's accent blended into the spruce background at increasing strength
      * (far 28%, mid 62%), with the nearest trees darkened so the layers read as depth.
-     * Precomputed (tools/gen_pine_ridge.py documents the art) so there's no per-frame math.
+     * Precomputed so there's no per-frame math.
      */
     fun ridgeColors(season: Season): Ridge = when (season) {
         Season.WINTER -> Ridge(Color(0xFF51645D), Color(0xFF93A2A2), Color(0xFF747B7E))
@@ -48,17 +67,79 @@ object Woodland {
         Season.FOLIAGE -> Ridge(Color(0xFF4B3627), Color(0xFF863C2B), Color(0xFF692519))
         Season.STICK -> Ridge(Color(0xFF47432A), Color(0xFF7C5A32), Color(0xFF613E1F))
     }
+
+    fun backgroundBrush(style: BackgroundStyle): Brush = when (style) {
+        BackgroundStyle.SPRUCE -> Brush.verticalGradient(listOf(SkyTop, SkyBottom))
+        BackgroundStyle.NIGHT -> Brush.verticalGradient(listOf(Color(0xFF080E0B), Color(0xFF101C15)))
+        BackgroundStyle.BLACK -> SolidColor(Color.Black)
+    }
 }
 
-/** The current pine-ridge colors; change with the season. */
-val LocalRidge = staticCompositionLocalOf { Woodland.ridgeColors(Season.FOLIAGE) }
+/** Everything the backdrop needs. */
+@Immutable
+data class Look(
+    val background: Brush,
+    val scenery: SceneryMode,
+    val ridge: Woodland.Ridge,
+    val edgePadding: Dp,
+)
+
+/** Everything a tile needs, derived from settings. */
+@Immutable
+data class TileStyle(
+    val width: Dp,
+    val height: Dp,
+    val iconSize: Dp,
+    val corner: Dp,
+    val outline: Dp,
+    val focusedScale: Float,
+    val artwork: TileArtwork,
+    val labels: LabelMode,
+)
+
+fun tileStyleFor(s: LauncherSettings): TileStyle {
+    val (w, h, icon) = when (s.tileSize) {
+        TileSize.SMALL -> Triple(160.dp, 100.dp, 40.dp)
+        TileSize.MEDIUM -> Triple(196.dp, 124.dp, 52.dp)
+        TileSize.LARGE -> Triple(240.dp, 152.dp, 64.dp)
+    }
+    return TileStyle(
+        width = w,
+        height = h,
+        iconSize = icon,
+        corner = s.cornerStyle.dp.dp,
+        outline = s.outlineWidth.dp.dp,
+        focusedScale = s.focusZoom.scale,
+        artwork = s.tileArtwork,
+        labels = s.labelMode,
+    )
+}
 
 /** The current focus accent; changes with the season. */
 val LocalAccent = staticCompositionLocalOf { Woodland.accentFor(Season.FOLIAGE) }
 
+val LocalLook = staticCompositionLocalOf {
+    Look(Woodland.backgroundBrush(BackgroundStyle.SPRUCE), SceneryMode.FULL, Woodland.ridgeColors(Season.FOLIAGE), 0.dp)
+}
+
+val LocalTileStyle = staticCompositionLocalOf { tileStyleFor(LauncherSettings()) }
+
 @Composable
-fun NorthEastTheme(season: Season, content: @Composable () -> Unit) {
+fun NorthEastTheme(settings: LauncherSettings, season: Season, content: @Composable () -> Unit) {
     val accent = Woodland.accentFor(season)
+    val look = remember(settings.background, settings.scenery, settings.treeColor, settings.edgePadding, season) {
+        Look(
+            background = Woodland.backgroundBrush(settings.background),
+            scenery = settings.scenery,
+            ridge = if (settings.treeColor == TreeColor.CLASSIC) Woodland.ClassicRidge else Woodland.ridgeColors(season),
+            edgePadding = settings.edgePadding.dp.dp,
+        )
+    }
+    val tileStyle = remember(settings) { tileStyleFor(settings) }
+    val density = LocalDensity.current
+    val scaledDensity = remember(density, settings.textSize) {
+        Density(density.density, density.fontScale * settings.textSize.scale)
+    }
     MaterialTheme(
         colorScheme = darkColorScheme(
             primary = accent,
@@ -72,7 +153,9 @@ fun NorthEastTheme(season: Season, content: @Composable () -> Unit) {
     ) {
         CompositionLocalProvider(
             LocalAccent provides accent,
-            LocalRidge provides Woodland.ridgeColors(season),
+            LocalLook provides look,
+            LocalTileStyle provides tileStyle,
+            LocalDensity provides scaledDensity,
             content = content,
         )
     }

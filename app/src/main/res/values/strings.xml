@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">NorthEast</string>
+    <string name="home_service_label">NorthEast Home button</string>
+    <string name="home_service_description">Makes the remote\'s Home button open the NorthEast home screen. It only listens for the Home button (and one extra button you choose in NorthEast settings). It cannot see what is on your screen and nothing leaves the device.</string>
 </resources>

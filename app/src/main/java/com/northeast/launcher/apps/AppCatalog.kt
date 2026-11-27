@@ -30,8 +30,12 @@ class AppCatalog(context: Context) {
     private val pm: PackageManager = appContext.packageManager
     private val ownPackage = appContext.packageName
 
-    /** Small in-memory icon cache; icons are re-decoded only after process death. */
-    private val iconCache = LruCache<AppKey, ImageBitmap>(64)
+    /** Small in-memory image caches, keyed by app + size; re-decoded only after process death. */
+    private val iconCache = LruCache<String, ImageBitmap>(64)
+    private val bannerCache = LruCache<String, ImageBitmap>(32)
+
+    /** Apps with no banner, so we don't ask PackageManager again for every recomposition. */
+    private val noBanner: MutableSet<AppKey> = java.util.concurrent.ConcurrentHashMap.newKeySet()
 
     /**
      * All launchable apps, TV apps preferred. Apps that only have a phone launcher entry are
@@ -51,7 +55,8 @@ class AppCatalog(context: Context) {
 
     /** Decodes the app's icon at [sizePx]. Call off the main thread. Returns null if unavailable. */
     fun loadIcon(key: AppKey, sizePx: Int): ImageBitmap? {
-        iconCache.get(key)?.let { return it }
+        val cacheKey = "${key.flatten()}@$sizePx"
+        iconCache.get(cacheKey)?.let { return it }
         val bitmap = try {
             pm.getActivityIcon(ComponentName(key.packageName, key.activityName))
                 .toBitmap(sizePx, sizePx)
@@ -59,7 +64,31 @@ class AppCatalog(context: Context) {
         } catch (_: PackageManager.NameNotFoundException) {
             return null
         }
-        iconCache.put(key, bitmap)
+        iconCache.put(cacheKey, bitmap)
+        return bitmap
+    }
+
+    /**
+     * The app's TV banner (the wide 16:9 artwork TV apps ship), at [widthPx]×[heightPx].
+     * Returns null if the app has none; the tile then falls back to icon + name.
+     * Call off the main thread.
+     */
+    fun loadBanner(key: AppKey, widthPx: Int, heightPx: Int): ImageBitmap? {
+        if (key in noBanner) return null
+        val cacheKey = "${key.flatten()}@${widthPx}x$heightPx"
+        bannerCache.get(cacheKey)?.let { return it }
+        val drawable = try {
+            pm.getActivityBanner(ComponentName(key.packageName, key.activityName))
+                ?: pm.getApplicationBanner(key.packageName)
+        } catch (_: PackageManager.NameNotFoundException) {
+            null
+        }
+        if (drawable == null) {
+            noBanner += key
+            return null
+        }
+        val bitmap = drawable.toBitmap(widthPx, heightPx).asImageBitmap()
+        bannerCache.put(cacheKey, bitmap)
         return bitmap
     }
 

@@ -7,17 +7,29 @@ import androidx.compose.runtime.setValue
 import com.northeast.launcher.apps.AppCatalog
 import com.northeast.launcher.apps.LaunchableApp
 import com.northeast.launcher.data.AppKey
+import com.northeast.launcher.data.LauncherSettings
+import com.northeast.launcher.data.PickerFilter
+import com.northeast.launcher.data.PickerSort
 import com.northeast.launcher.data.PinnedAppsRepository
 import com.northeast.launcher.data.PinnedOrder
+import com.northeast.launcher.data.SettingsStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** UI state for the home screen. All mutations happen on the main thread. */
+/** UI state for the launcher. All mutations happen on the main thread. */
 @Stable
 class LauncherState(
     val catalog: AppCatalog,
     private val repository: PinnedAppsRepository,
+    private val settingsStore: SettingsStore,
 ) {
+    /**
+     * Read synchronously at startup (SharedPreferences, a few ms) so the very first frame
+     * already has the right colors and layout.
+     */
+    var settings: LauncherSettings by mutableStateOf(settingsStore.load())
+        private set
+
     /** Every launchable app on the device, sorted by name. */
     var installed: List<LaunchableApp> by mutableStateOf(emptyList())
         private set
@@ -36,11 +48,20 @@ class LauncherState(
             return PinnedOrder.visible(pinnedKeys, byKey.keys).mapNotNull(byKey::get)
         }
 
-    /** Installed apps not on the home screen yet, sorted by name. */
-    val addable: List<LaunchableApp>
+    /**
+     * Apps for the "Your home screen apps" list, per the app-list settings. Apps already on
+     * the home screen are always listed so they can be removed, even if filtered out otherwise.
+     */
+    val pickerApps: List<LaunchableApp>
         get() {
-            val byKey = installed.associateBy { it.key }
-            return PinnedOrder.unpinned(installed.map { it.key }, pinnedKeys).mapNotNull(byKey::get)
+            val pinnedSet = pinnedKeys.toHashSet()
+            val filtered = installed.filter {
+                settings.pickerFilter == PickerFilter.ALL || it.isTvApp || it.key in pinnedSet
+            }
+            return when (settings.pickerSort) {
+                PickerSort.NAME -> filtered
+                PickerSort.TV_FIRST -> filtered.sortedByDescending { it.isTvApp } // stable: keeps A–Z within groups
+            }
         }
 
     /** Re-reads installed apps (and, on first run, seeds the default pins). */
@@ -57,9 +78,29 @@ class LauncherState(
         loaded = true
     }
 
+    fun updateSettings(transform: (LauncherSettings) -> LauncherSettings) {
+        val updated = transform(settings)
+        if (updated == settings) return
+        settings = updated
+        settingsStore.save(updated)
+    }
+
+    /** Resets every setting except the PIN (so a reset can't be used to bypass it). */
+    fun resetSettings() = updateSettings { LauncherSettings(pinHash = it.pinHash) }
+
+    fun resetPinnedToDefaults() {
+        pinnedKeys = repository.resetToDefaults(installed.map { it.key })
+    }
+
     fun pin(app: LaunchableApp) = mutate { PinnedOrder.add(it, app.key) }
 
     fun unpin(app: LaunchableApp) = mutate { PinnedOrder.remove(it, app.key) }
+
+    /** Sorts the home screen apps by name (one-off; manual order resumes afterwards). */
+    fun sortPinnedByName() {
+        val order = pinned.sortedBy { it.label.lowercase() }.map { it.key }
+        mutate { full -> order + full.filterNot { it in order } }
+    }
 
     /**
      * Moves [app] one visible slot earlier/later. Works on the visible list so hidden

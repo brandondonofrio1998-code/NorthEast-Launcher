@@ -2,53 +2,70 @@ package com.northeast.launcher.ui
 
 import android.text.format.DateFormat
 import androidx.annotation.DrawableRes
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
-import com.northeast.launcher.ui.theme.LocalRidge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.northeast.launcher.R
+import com.northeast.launcher.data.ClockFormat
+import com.northeast.launcher.data.HomeRules
+import com.northeast.launcher.data.LauncherSettings
+import com.northeast.launcher.data.SceneryMode
+import com.northeast.launcher.data.Season
+import com.northeast.launcher.ui.theme.LocalLook
 import com.northeast.launcher.ui.theme.Woodland
 import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
-
-private val skyBrush = Brush.verticalGradient(listOf(Woodland.SkyTop, Woodland.SkyBottom))
+import java.util.Locale
 
 /**
- * The static woodland backdrop: spruce-green sky and the pine ridge along the bottom.
- * Nothing here animates; the vector is rasterized once and cached by Compose.
+ * The static woodland backdrop: background and up to three tinted pine-ridge layers.
+ * Nothing animates; vectors are rasterized once and cached by Compose.
+ * [content] is inset by the "Screen edge padding" setting for TVs that crop the picture.
  */
 @Composable
 fun Scenery(content: @Composable BoxScope.() -> Unit) {
+    val look = LocalLook.current
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(skyBrush),
+            .background(look.background),
     ) {
-        val ridge = LocalRidge.current
-        // Three stacked layers sharing one viewport, each tinted with its seasonal color.
-        RidgeLayer(R.drawable.pine_ridge_far, ridge.far)
-        RidgeLayer(R.drawable.pine_ridge_mid, ridge.mid)
-        RidgeLayer(R.drawable.pine_ridge_near, ridge.near)
-        content()
+        when (look.scenery) {
+            SceneryMode.FULL -> {
+                RidgeLayer(R.drawable.pine_ridge_far, look.ridge.far)
+                RidgeLayer(R.drawable.pine_ridge_mid, look.ridge.mid)
+                RidgeLayer(R.drawable.pine_ridge_near, look.ridge.near)
+            }
+            SceneryMode.FRONT_ONLY -> RidgeLayer(R.drawable.pine_ridge_near, look.ridge.near)
+            SceneryMode.NONE -> Unit
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(look.edgePadding),
+            content = content,
+        )
     }
 }
 
@@ -66,22 +83,48 @@ private fun BoxScope.RidgeLayer(@DrawableRes res: Int, color: Color) {
     )
 }
 
-/** Current time, in the device's 12/24-hour setting. Ticks once a minute, on the minute. */
+/** Wall-clock time that updates once a minute, on the minute. One ticker drives the clock, dimming and season. */
 @Composable
-fun Clock(modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val format = remember(context) { DateFormat.getTimeFormat(context) }
-    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+fun rememberMinuteTicker(): State<Long> {
+    val now = remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
-            now = System.currentTimeMillis()
-            delay(60_000L - now % 60_000L)
+            now.longValue = System.currentTimeMillis()
+            delay(60_000L - now.longValue % 60_000L)
         }
     }
-    Text(
-        text = format.format(Date(now)),
-        style = MaterialTheme.typography.headlineSmall,
-        color = Woodland.Birch,
-        modifier = modifier,
-    )
+    return now
+}
+
+/** Clock, date, greeting and season name (each optional), top-right. */
+@Composable
+fun TopInfo(nowMillis: Long, settings: LauncherSettings, season: Season, modifier: Modifier = Modifier) {
+    if (!settings.showClock && !settings.showDate && !settings.showGreeting && !settings.showSeasonName) return
+    val context = LocalContext.current
+    val timeFormat = remember(context, settings.clockFormat) {
+        when (settings.clockFormat) {
+            ClockFormat.SYSTEM -> DateFormat.getTimeFormat(context)
+            ClockFormat.H12 -> SimpleDateFormat("h:mm a", Locale.getDefault())
+            ClockFormat.H24 -> SimpleDateFormat("HH:mm", Locale.getDefault())
+        }
+    }
+    val dateFormat = remember {
+        SimpleDateFormat(DateFormat.getBestDateTimePattern(Locale.getDefault(), "EEEEMMMMd"), Locale.getDefault())
+    }
+    val date = Date(nowMillis)
+    val hour = remember(nowMillis) { Calendar.getInstance().apply { timeInMillis = nowMillis }.get(Calendar.HOUR_OF_DAY) }
+    Column(modifier = modifier, horizontalAlignment = Alignment.End) {
+        if (settings.showClock) {
+            Text(timeFormat.format(date), style = MaterialTheme.typography.headlineSmall, color = Woodland.Birch)
+        }
+        if (settings.showDate) {
+            Text(dateFormat.format(date), style = MaterialTheme.typography.titleSmall, color = Woodland.BirchMuted)
+        }
+        if (settings.showGreeting) {
+            Text(HomeRules.greeting(hour), style = MaterialTheme.typography.titleSmall, color = Woodland.BirchMuted)
+        }
+        if (settings.showSeasonName) {
+            Text(season.displayName, style = MaterialTheme.typography.labelMedium, color = Woodland.BirchFaint)
+        }
+    }
 }

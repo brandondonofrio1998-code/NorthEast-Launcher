@@ -50,7 +50,8 @@ fun AddAppsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = Woodland.BirchFaint,
             )
-            if (state.installed.isEmpty() && state.loaded) {
+            val apps = state.pickerApps
+            if (apps.isEmpty() && state.loaded) {
                 Text(
                     "No launchable apps found.",
                     style = MaterialTheme.typography.bodyLarge,
@@ -64,21 +65,23 @@ fun AddAppsScreen(
                 horizontalArrangement = Arrangement.spacedBy(20.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                items(state.installed, key = { it.key.flatten() }) { app ->
+                items(apps, key = { it.key.flatten() }) { app ->
                     val isPinned = app.key in pinnedKeys
                     val modifier = Modifier.height(116.dp).let {
-                        if (app == state.installed.first()) it.focusRequester(firstItem) else it
+                        if (app == apps.first()) it.focusRequester(firstItem) else it
                     }
                     WoodlandCard(
                         onClick = { onToggle(app, !isPinned) },
                         highlighted = isPinned,
                         modifier = modifier,
-                    ) {
+                    ) { focused ->
                         AppTileContent(
                             app = app,
                             catalog = state.catalog,
+                            focused = focused,
                             iconSize = 40.dp,
                             badge = if (isPinned) "✓ On home" else null,
+                            forceIconAndName = true,
                         )
                     }
                 }
