@@ -113,15 +113,24 @@ adb shell input keyevent KEYCODE_HOME; sleep 3
 shot 19-home-key-with-service-input
 echo "--- after 'input keyevent HOME':" >> "$OUT/home-key-with-service.txt"
 adb shell dumpsys activity activities | grep -m2 -E "topResumedActivity|mResumedActivity" | tee -a "$OUT/home-key-with-service.txt"
-# (b) Home from the emulator's virtual keyboard hardware: the same path a real remote takes.
-adb shell am start -a android.settings.SETTINGS; sleep 3
-adb emu event send EV_KEY:KEY_HOME:1 EV_SYN:0:0 || true
-sleep 0.2
-adb emu event send EV_KEY:KEY_HOME:0 EV_SYN:0:0 || true
-sleep 3
-shot 20-home-key-with-service-hardware
-echo "--- after hardware HOME:" >> "$OUT/home-key-with-service.txt"
-adb shell dumpsys activity activities | grep -m2 -E "topResumedActivity|mResumedActivity" | tee -a "$OUT/home-key-with-service.txt"
+# (b) Home written straight into a kernel input device (needs root): the same path a real remote
+#     takes, so it passes through accessibility key filtering, unlike shell-injected keys.
+adb root > /dev/null 2>&1 || true
+sleep 3; adb wait-for-device
+echo "--- input devices with a Home key:" >> "$OUT/home-key-with-service.txt"
+adb shell getevent -pl 2>/dev/null | grep -E "add device|name:|KEY_HOME" | tee -a "$OUT/home-key-with-service.txt" > /dev/null
+DEV=$(adb shell getevent -pl 2>/dev/null | tr -d '\r' | awk '/add device/{d=$4} /KEY_HOMEPAGE|KEY_HOME /{print d; exit}')
+echo "device: ${DEV:-none}" >> "$OUT/home-key-with-service.txt"
+for CODE in 172 102; do   # KEY_HOMEPAGE, KEY_HOME — whichever the keyboard layout maps to HOME
+  adb shell am start -a android.settings.SETTINGS; sleep 3
+  if [ -n "$DEV" ]; then
+    adb shell "sendevent $DEV 1 $CODE 1; sendevent $DEV 0 0 0; sendevent $DEV 1 $CODE 0; sendevent $DEV 0 0 0"
+  fi
+  sleep 3
+  shot "20-home-key-hardware-$CODE"
+  echo "--- after hardware key $CODE:" >> "$OUT/home-key-with-service.txt"
+  adb shell dumpsys activity activities | grep -m2 -E "topResumedActivity|mResumedActivity" | tee -a "$OUT/home-key-with-service.txt"
+done
 adb logcat -d | grep -E "NorthEastHome|ActivityTaskManager.*(Background|BAL|Abort)" | tail -20 | tee -a "$OUT/home-key-with-service.txt"
 adb shell settings put secure enabled_accessibility_services ""
 adb shell settings put secure accessibility_enabled 0
