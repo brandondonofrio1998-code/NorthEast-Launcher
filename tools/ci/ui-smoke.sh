@@ -119,12 +119,14 @@ adb root > /dev/null 2>&1 || true
 sleep 3; adb wait-for-device
 echo "--- input devices with a Home key:" >> "$OUT/home-key-with-service.txt"
 adb shell getevent -pl 2>/dev/null | grep -E "add device|name:|KEY_HOME" | tee -a "$OUT/home-key-with-service.txt" > /dev/null
-DEV=$(adb shell getevent -pl 2>/dev/null | tr -d '\r' | awk '/add device/{d=$4} /KEY_HOMEPAGE|KEY_HOME /{print d; exit}')
-echo "device: ${DEV:-none}" >> "$OUT/home-key-with-service.txt"
+# Prefer the emulator's keyboard (Generic.kl maps KEY_HOMEPAGE to HOME); fall back to any device with a Home key.
+DEV=$(adb shell getevent -pl 2>/dev/null | tr -d '\r' | awk '/add device/{d=$4} /name:.*keyboard/{print d; exit}')
+[ -z "$DEV" ] && DEV=$(adb shell getevent -pl 2>/dev/null | tr -d '\r' | awk '/add device/{d=$4} /KEY_HOMEPAGE|KEY_HOME /{print d; exit}')
+echo "device: ${DEV:-none}; shell user: $(adb shell id -u | tr -d '\r')" >> "$OUT/home-key-with-service.txt"
 for CODE in 172 102; do   # KEY_HOMEPAGE, KEY_HOME — whichever the keyboard layout maps to HOME
   adb shell am start -a android.settings.SETTINGS; sleep 3
   if [ -n "$DEV" ]; then
-    adb shell "sendevent $DEV 1 $CODE 1; sendevent $DEV 0 0 0; sendevent $DEV 1 $CODE 0; sendevent $DEV 0 0 0"
+    adb shell "sendevent $DEV 1 $CODE 1; sendevent $DEV 0 0 0; sendevent $DEV 1 $CODE 0; sendevent $DEV 0 0 0" 2>&1 | head -3 | tee -a "$OUT/home-key-with-service.txt"
   fi
   sleep 3
   shot "20-home-key-hardware-$CODE"
