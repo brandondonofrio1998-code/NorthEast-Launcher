@@ -310,7 +310,7 @@ fun PinSetDialog(onSet: (String) -> Unit, onCancel: () -> Unit) {
     PinPad(
         title = if (first == null) "Choose a 4-digit PIN" else "Enter it again",
         message = error ?: if (first == null) {
-            "You'll need it to open settings. If it's ever forgotten, see docs/TROUBLESHOOTING.md."
+            "You'll need it to open settings. If it's ever forgotten, see docs/SETTINGS.md."
         } else {
             "Confirm your new PIN."
         },
