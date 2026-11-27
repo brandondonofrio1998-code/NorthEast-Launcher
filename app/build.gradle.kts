@@ -1,9 +1,28 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+}
+
+/**
+ * Release signing comes from keystore.properties in the project root (git-ignored; copy
+ * keystore.properties.template). Without it, assembleRelease still works and produces an
+ * unsigned APK. See docs/RELEASE.md.
+ */
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.isFile) file.inputStream().use(::load)
+}
+val hasReleaseKey = listOf("storeFile", "storePassword", "keyAlias", "keyPassword").all {
+    val value = keystoreProperties.getProperty(it)?.trim()
+    // "[PLACEHOLDER]" values copied straight from the template count as not configured.
+    !value.isNullOrEmpty() && !value.startsWith("[")
+}
+if (rootProject.file("keystore.properties").isFile && !hasReleaseKey) {
+    logger.warn("keystore.properties is incomplete or still has [PLACEHOLDER] values; release APK will be unsigned.")
 }
 
 android {
@@ -16,12 +35,24 @@ android {
         // and most Android/Google TV televisions from 2019 on. See docs/FEASIBILITY.md §5.
         minSdk = 28
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.9.0"
+    }
+
+    signingConfigs {
+        if (hasReleaseKey) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
         release {
+            if (hasReleaseKey) signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

@@ -100,31 +100,53 @@ key KEYCODE_BACK                          # leave settings
 sleep 1
 shot 17-home-customized
 
-# ---- Home-button service: must install, be accepted by the system, and bind ----
+# ---- M4: tools/device.sh end to end (make-default → disable-stock → reboot → restore) ----
 # A physical Home press can't be simulated here: shell-injected keys skip accessibility key filtering
-# by design, and the Android TV emulator image has no root for writing to input devices. The actual
-# Home takeover is therefore checked on a real device with its remote (see docs/SETTINGS.md).
-SVC="$PKG/com.northeast.launcher.home.HomeButtonService"
-adb shell settings put secure enabled_accessibility_services "$SVC"
-adb shell settings put secure accessibility_enabled 1
+# by design, and the Android TV emulator image has no root for writing to input devices. The Home
+# takeover itself is checked on a real device with its remote; here we check that the service binds.
+DEV="bash tools/device.sh --package $PKG"
+$DEV status | tee "$OUT/device-status-before.txt"
+$DEV make-default | tee "$OUT/device-make-default.txt"
 sleep 4
 adb shell dumpsys accessibility | grep -E "Bound services|Enabled services" | tee "$OUT/home-service.txt"
 adb logcat -d | grep "NorthEastHome" | tail -5 | tee -a "$OUT/home-service.txt"
 SERVICE_BOUND=0
 grep -q "NorthEast Home button" "$OUT/home-service.txt" && SERVICE_BOUND=1
-adb shell settings put secure enabled_accessibility_services ""
-adb shell settings put secure accessibility_enabled 0
 
-# Emulator only (throwaway device): does the Home key reach us once the stock launcher is out
-# of the way? This checks our HOME intent filter, not the recommended setup for real devices.
-adb shell input keyevent KEYCODE_HOME; sleep 2
-shot 8-home-key-stock-launcher
-adb shell pm disable-user --user 0 com.google.android.tvlauncher | tee -a "$OUT/home-key-test.txt"
-adb shell am start -a android.intent.action.MAIN -c android.intent.category.HOME; sleep 3
+$DEV disable-stock --yes | tee "$OUT/device-disable-stock.txt"
 adb shell input keyevent KEYCODE_HOME; sleep 3
-shot 9-home-key-stock-disabled
-adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME | tee -a "$OUT/home-key-test.txt"
-adb shell pm enable com.google.android.tvlauncher | tee -a "$OUT/home-key-test.txt"
+shot 21-home-key-stock-disabled
+# Reboot: with the stock launcher off, the TV must boot straight into NorthEast (no soft-brick).
+adb reboot
+adb wait-for-device
+for _ in $(seq 90); do [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1 ] && break; sleep 2; done
+sleep 15
+shot 22-after-reboot-stock-disabled
+adb shell dumpsys activity activities | grep -m1 -E "mResumedActivity|topResumedActivity" | tee "$OUT/after-reboot.txt"
+grep -q "$PKG" "$OUT/after-reboot.txt" || { echo "::error::NorthEast was not the home screen after reboot"; FAILED=1; }
+
+$DEV restore | tee "$OUT/device-restore.txt"
+sleep 3
+shot 23-after-restore
+$DEV status | tee "$OUT/device-status-after.txt"
+grep -q "tvlauncher (enabled)" "$OUT/device-status-after.txt" || { echo "::error::restore did not re-enable the stock launcher"; FAILED=1; }
+grep -q "Home-button service: off" "$OUT/device-status-after.txt" || { echo "::error::restore did not turn the service off"; FAILED=1; }
+grep -q "resolves to: com.google.android.tvlauncher" "$OUT/device-status-after.txt" || { echo "::error::restore did not give Home back to the stock launcher"; FAILED=1; }
+
+# ---- Release build (signed in CI with a throwaway key): installs, starts, cold-start timing ----
+REL=app/build/outputs/apk/release/app-release.apk
+if [ -f "$REL" ]; then
+  adb install -r "$REL"
+  for i in 1 2 3; do
+    adb shell am force-stop com.northeast.launcher; sleep 1
+    adb shell am start -W -n com.northeast.launcher/com.northeast.launcher.MainActivity | grep -E "Status|TotalTime" | tee -a "$OUT/release-cold-start.txt"
+    sleep 2
+  done
+  shot 24-release-build
+  grep -q "Status: ok" "$OUT/release-cold-start.txt" || { echo "::error::release build did not start"; FAILED=1; }
+else
+  echo "::error::signed release APK missing"; FAILED=1
+fi
 
 ls -l "$OUT"
 if [ "$SERVICE_BOUND" != 1 ]; then echo "::error::Home-button service did not bind"; FAILED=1; fi

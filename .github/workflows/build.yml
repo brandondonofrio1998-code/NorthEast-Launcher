@@ -26,15 +26,26 @@ jobs:
       - name: Unit tests
         run: ./gradlew --stacktrace testDebugUnitTest
 
-      - name: Build debug APK
-        run: ./gradlew --stacktrace assembleDebug
+      - name: Build debug APK and unsigned release APK
+        run: ./gradlew --stacktrace assembleDebug assembleRelease
 
-      - name: Verify the APK requests no network permissions
+      - name: Verify the APKs request no network permissions
         run: |
           AAPT2=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
-          "$AAPT2" dump permissions app/build/outputs/apk/debug/app-debug.apk | tee permissions.txt
-          if grep -E "android.permission.(INTERNET|ACCESS_NETWORK_STATE|ACCESS_WIFI_STATE)" permissions.txt; then
-            echo "::error::The launcher must not request network permissions."
+          for apk in app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/release/app-release-unsigned.apk; do
+            echo "== $apk"
+            "$AAPT2" dump permissions "$apk" | tee permissions.txt
+            if grep -E "android.permission.(INTERNET|ACCESS_NETWORK_STATE|ACCESS_WIFI_STATE)" permissions.txt; then
+              echo "::error::The launcher must not request network permissions ($apk)."
+              exit 1
+            fi
+          done
+          ls -l app/build/outputs/apk/*/*.apk
+
+      - name: Make sure no signing secrets are tracked
+        run: |
+          if git ls-files | grep -E '(^|/)keystore\.properties$|\.(jks|keystore|p12)$'; then
+            echo "::error::Signing secrets must never be committed."
             exit 1
           fi
 

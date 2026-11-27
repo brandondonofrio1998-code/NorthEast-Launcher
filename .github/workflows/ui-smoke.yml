@@ -21,8 +21,14 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Build debug APK
-        run: ./gradlew assembleDebug
+      # Release build signed with a throwaway key made here and discarded with the CI machine.
+      - name: Build debug APK and CI-signed release APK
+        run: |
+          keytool -genkeypair -keystore "$RUNNER_TEMP/ci.jks" -alias ci -keyalg RSA -keysize 2048 \
+            -validity 2 -storepass ci-only -keypass ci-only -dname "CN=NorthEast CI throwaway"
+          printf 'storeFile=%s\nstorePassword=ci-only\nkeyAlias=ci\nkeyPassword=ci-only\n' "$RUNNER_TEMP/ci.jks" > keystore.properties
+          ./gradlew assembleDebug assembleRelease
+          rm keystore.properties
 
       - name: Enable KVM
         run: |
@@ -31,7 +37,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: Run on Android TV emulator
-        timeout-minutes: 15
+        timeout-minutes: 20
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 30
