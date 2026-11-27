@@ -93,11 +93,14 @@ fun HomeScreen(
         runCatching { requesterFor(key).requestFocus() }
     }
 
-    /** Wrap-around: jump from one end of the row to the other. Returns true if handled. */
+    /**
+     * ◀ ▶ at the ends of the row: wrap around if that setting is on, otherwise stay put
+     * (so focus never slips off the row to the gear). Returns true if the key was handled.
+     */
     fun wrapFrom(key: String, delta: Int): Boolean {
-        if (!settings.wrapAround) return false
         val index = rowKeys.indexOf(key)
-        val next = HomeRules.step(index, rowKeys.size, delta, wrap = true) ?: return false
+        if (index < 0) return false
+        val next = HomeRules.step(index, rowKeys.size, delta, settings.wrapAround) ?: return true
         if (next == index + delta) return false // ordinary step: let normal focus movement handle it
         scope.launch { focusKey(rowKeys[next]) }
         return true

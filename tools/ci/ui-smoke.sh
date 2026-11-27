@@ -115,9 +115,9 @@ echo "--- after 'input keyevent HOME':" >> "$OUT/home-key-with-service.txt"
 adb shell dumpsys activity activities | grep -m2 -E "topResumedActivity|mResumedActivity" | tee -a "$OUT/home-key-with-service.txt"
 # (b) Home from the emulator's virtual keyboard hardware: the same path a real remote takes.
 adb shell am start -a android.settings.SETTINGS; sleep 3
-adb emu event send EV_KEY:KEY_HOMEPAGE:1 EV_SYN:0:0 || true
+adb emu event send EV_KEY:KEY_HOME:1 EV_SYN:0:0 || true
 sleep 0.2
-adb emu event send EV_KEY:KEY_HOMEPAGE:0 EV_SYN:0:0 || true
+adb emu event send EV_KEY:KEY_HOME:0 EV_SYN:0:0 || true
 sleep 3
 shot 20-home-key-with-service-hardware
 echo "--- after hardware HOME:" >> "$OUT/home-key-with-service.txt"
