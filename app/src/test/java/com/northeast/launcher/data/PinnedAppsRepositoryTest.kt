@@ -59,6 +59,14 @@ class PinnedAppsRepositoryTest {
     }
 
     @Test
+    fun resetToDefaultsReplacesCustomList() {
+        val r = repo()
+        r.save(listOf(other))
+        assertEquals(listOf(youtube, spotify), r.resetToDefaults(installed = listOf(spotify, other, youtube)))
+        assertEquals(listOf(youtube, spotify), r.load())
+    }
+
+    @Test
     fun seedingWithNothingInstalledSavesEmptyList() {
         val r = repo()
         assertTrue(r.loadOrSeed(installed = listOf(other)).isEmpty())

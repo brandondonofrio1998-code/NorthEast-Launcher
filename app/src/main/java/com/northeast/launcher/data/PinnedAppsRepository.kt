@@ -26,6 +26,11 @@ class PinnedAppsRepository(
      */
     fun loadOrSeed(installed: List<AppKey>): List<AppKey> {
         load()?.let { return it }
+        return resetToDefaults(installed)
+    }
+
+    /** Replaces the saved list with the installed default apps, as on first run. */
+    fun resetToDefaults(installed: List<AppKey>): List<AppKey> {
         val seeded = defaultPackages.mapNotNull { pkg ->
             installed.firstOrNull { it.packageName == pkg }
         }
